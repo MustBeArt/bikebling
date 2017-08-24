@@ -26,6 +26,9 @@
 // Because conditional #includes don't work w/Arduino sketches...
 //#include <SPI.h>         // COMMENT OUT THIS LINE FOR GEMMA OR TRINKET
 #include <avr/power.h> // ENABLE THIS LINE FOR GEMMA OR TRINKET
+#include <EEPROM.h>
+
+#define EEPROM_VERSION 1
 
 #define LED_NUM_TOP 31
 #define LED_NUM_DOWN 36
@@ -35,8 +38,8 @@
 #define LED_DOWN_HEAD 31
 #define LED_DOWN_BB   66
 #define LED_TOP_STEP_FORWARD  1
-#define LED_TOP_STEP_BACKWARD -1
-#define LED_DOWN_STEP_FORWARD -1
+#define LED_TOP_STEP_BACKWARD (-1)
+#define LED_DOWN_STEP_FORWARD (-1)
 #define LED_DOWN_STEP_BACKWARD  1
 
 #define LED_TOP_FROM_FRONT(x) (LED_TOP_HEAD+x*LED_TOP_STEP_BACKWARD)
@@ -47,26 +50,18 @@
 // Using the constructor flavor for hardware SPI
 Adafruit_DotStar strip = Adafruit_DotStar(NUMPIXELS, DOTSTAR_BRG);
 
-void setup() {
+uint8_t bling_mode;
 
-#if defined(__AVR_ATtiny85__) && (F_CPU == 16000000L)
-  clock_prescale_set(clock_div_1); // Enable 16 MHz on Trinket
-#endif
-
-  strip.begin(); // Initialize pins for output
-  strip.show();  // Turn all LEDs off ASAP
-}
-
-void setPixelColorSafe(int n, uint32_t color) {
-  if (n > 0 && n < NUMPIXELS)
-    strip.setPixelColor(n, color);
-}
-
-int pos = 0;
-int width = 5;
-uint32_t color = 0xFF0000;      // 'On' color (starts red)
-
-void loop() {
+void bling_simple_1() {
+  static int pos = 0;
+  int width = 5;
+  uint32_t color;
+  
+  if (bling_mode == 0)
+    color = 0xFF0000;      // 'On' color (starts red)
+  else
+    color = 0x00FF00;
+    
   int tail = pos - width;
   if (pos < LED_NUM_TOP)
     setPixelColorSafe(LED_TOP_FROM_FRONT(pos), color); // 'On' pixel at pos
@@ -85,4 +80,54 @@ void loop() {
     pos = 0;
     // maybe change color here!
   }
+}
+
+typedef void (*bling_fn_ptr_t)(void);
+bling_fn_ptr_t bling_modes[] = {
+    bling_simple_1,     // red
+    bling_simple_1,     // green?  Just to test button function.
+    NULL
+    };
+
+void setup() {
+
+#if defined(__AVR_ATtiny85__) && (F_CPU == 16000000L)
+  clock_prescale_set(clock_div_1); // Enable 16 MHz on Trinket
+#endif
+
+  strip.begin(); // Initialize pins for output
+  strip.show();  // Turn all LEDs off ASAP
+  
+  if (EEPROM[0] != 'b' ||
+      EEPROM[1] != 'i' ||
+      EEPROM[2] != 'k' ||
+      EEPROM[3] != 'e' ||
+      EEPROM[4] != EEPROM_VERSION) {
+    EEPROM[0] = 'b';
+    EEPROM[1] = 'i';
+    EEPROM[2] = 'k';
+    EEPROM[3] = 'e';
+    EEPROM[4] = EEPROM_VERSION;
+    EEPROM[5] = 0;
+    for (int i=6; i < EEPROM.length(); i++) {
+        EEPROM.update(i, 0xFF);
+        }
+    }
+  bling_mode = EEPROM[5];
+}
+
+void setPixelColorSafe(int n, uint32_t color) {
+  if (n > 0 && n < NUMPIXELS)
+    strip.setPixelColor(n, color);
+}
+
+
+void loop() {
+    bling_modes[bling_mode]();
+    
+    if (button_hit()) {
+        bling_mode++;
+        if (bling_modes[bling_mode] == NULL)
+            bling_mode = 0;
+        }
 }
