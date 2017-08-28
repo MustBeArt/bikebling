@@ -47,6 +47,12 @@
 // Using the constructor flavor for hardware SPI
 Adafruit_DotStar strip = Adafruit_DotStar(NUMPIXELS, DOTSTAR_BRG);
 
+
+#define BUTTON_PIN  0
+
+uint8_t bling_mode = 0;
+
+
 void setup() {
 
 #if defined(__AVR_ATtiny85__) && (F_CPU == 16000000L)
@@ -55,6 +61,11 @@ void setup() {
 
   strip.begin(); // Initialize pins for output
   strip.show();  // Turn all LEDs off ASAP
+
+  pinMode(BUTTON_PIN, INPUT);
+  digitalWrite(BUTTON_PIN, HIGH); // pullup
+
+  
 }
 
 void setPixelColorSafe(int n, uint32_t color) {
@@ -64,9 +75,15 @@ void setPixelColorSafe(int n, uint32_t color) {
 
 int pos = 0;
 int width = 5;
-uint32_t color = 0xFF0000;      // 'On' color (starts red)
 
-void loop() {
+void bling_mode_simple(void) {
+  uint32_t color;      // 'On' color
+
+  if (bling_mode == 0)
+    color = 0xFF0000;
+  else if (bling_mode == 1)
+    color = 0x00FF00;
+    
   int tail = pos - width;
   if (pos < LED_NUM_TOP)
     setPixelColorSafe(LED_TOP_FROM_FRONT(pos), color); // 'On' pixel at pos
@@ -86,3 +103,119 @@ void loop() {
     // maybe change color here!
   }
 }
+
+
+void sparkle_bling(void) {
+  static uint8_t pixel;
+  static uint8_t state = 0;
+  
+  if (state == 0) {
+    pixel = random() % NUMPIXELS;
+    strip.setPixelColor(pixel, 0xFFFFFF); // turn on a new pixel
+    state = 1;
+    strip.show();
+    delay(5);
+    }
+  else if (state == 1) {
+    strip.setPixelColor(pixel, 0x000000); // turn off the previous pixel
+    state = 0;
+    strip.show();
+    delay(5);
+    }
+  else {
+    strip.clear();
+    state = 0;
+    }
+}
+
+int prev_pixel(int pixel) {
+  pixel--;
+  if (pixel < 0)
+    pixel = NUMPIXELS-1;
+  return(pixel);
+}
+
+int next_pixel(int pixel) {
+  pixel++;
+  if (pixel >= NUMPIXELS)
+    pixel = 0;
+  return(pixel);
+}
+
+void dualchase_bling(void) {
+#define DUALCHASE_WIDTH 5
+  static int front1 = 0, front2 = 0;
+  int pixel;
+  int i;
+  
+  strip.clear();
+  // front1 leads a chase toward higher pixel numbers
+  front1 = next_pixel(front1);
+  pixel = front1;
+  
+  for (i = 0; i < DUALCHASE_WIDTH; i++) {
+    strip.setPixelColor(pixel, 0xFF0000);
+    pixel = prev_pixel(pixel);
+    }
+  
+  // front2 leads a chase toward lower pixel numbers
+  front2 = prev_pixel(front2);
+  pixel = front2;
+  for (i = 0; i < DUALCHASE_WIDTH; i++) {
+    strip.setPixelColor(pixel, 0x00FF00 | strip.getPixelColor(pixel));
+    pixel = next_pixel(pixel);
+    }
+  strip.show();
+  delay(20);
+}
+
+typedef void blingfunc(void);
+blingfunc *bling_modes[] = {
+  bling_mode_simple,
+  bling_mode_simple,
+  sparkle_bling,
+  dualchase_bling,
+  NULL};
+
+ bool button_hit(void) {
+  static unsigned long lastDebounceTime = 0;
+  static unsigned long debounceDelay = 50;
+  static int buttonState;
+  static int lastButtonState;
+
+  
+  bool hit = 0;
+  
+  int reading = digitalRead(BUTTON_PIN);
+
+  if (reading != lastButtonState) {
+    lastDebounceTime = millis();
+  }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (reading != buttonState) {
+      buttonState = reading;
+      if (buttonState == LOW) {
+        hit = 1;
+      }
+    }
+  }
+
+  lastButtonState = reading;
+  
+  return hit;
+ }
+
+void loop(void) {
+  bling_modes[bling_mode]();
+
+  if (button_hit()) {
+    bling_mode++;
+    if (bling_modes[bling_mode] == NULL) {
+      bling_mode = 0;
+    }
+    strip.clear();
+  }
+  
+}
+
