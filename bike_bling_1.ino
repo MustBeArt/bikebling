@@ -83,6 +83,8 @@ void bling_mode_simple(void) {
     color = 0xFF0000;
   else if (bling_mode == 1)
     color = 0x00FF00;
+  else
+    color = 0x0000FF;
     
   int tail = pos - width;
   if (pos < LED_NUM_TOP)
@@ -171,12 +173,54 @@ void dualchase_bling(void) {
   delay(20);
 }
 
+void candycane_bling(void) {
+  static int length = 4;
+  static int length_increment = 1;
+  static int width = 2;
+  static int rotation = 0;
+  int pixel;
+  
+  strip.clear();
+  
+  for (pixel = 0; pixel < length; pixel++) {
+    if (((pixel+rotation) % (2*width)) < width) {
+      strip.setPixelColor(pixel, 0x00FF00);
+    } else {
+      strip.setPixelColor(pixel, 0xFFFFFF);
+    }
+  }
+
+  strip.show();
+  delay(50);
+  
+  length += length_increment;
+  if (length >= NUMPIXELS) {
+    length_increment = -1;
+    length += length_increment;
+  } else if (length < 4) {
+    length_increment = 1;
+    length = 4;
+    width++;
+    if (width > 10) {
+      width = 2;
+    }
+  }
+
+  rotation++;
+  if (rotation >= width*2) {
+    rotation = 0;
+  }
+
+}
+
 typedef void blingfunc(void);
 blingfunc *bling_modes[] = {
-  bling_mode_simple,
-  bling_mode_simple,
+  bling_mode_simple,  // green
+  bling_mode_simple,  // red
+  bling_mode_simple,  // blue
   sparkle_bling,
   dualchase_bling,
+  candycane_bling,
   NULL};
 
  bool button_hit(void) {
