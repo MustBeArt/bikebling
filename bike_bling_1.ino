@@ -143,7 +143,8 @@ int next_pixel(int pixel) {
 }
 
 void dualchase_bling(void) {
-#define DUALCHASE_WIDTH 5
+#define DUALCHASE_WIDTH1 7
+#define DUALCHASE_WIDTH2 2
   static int front1 = 0, front2 = 0;
   int pixel;
   int i;
@@ -153,15 +154,16 @@ void dualchase_bling(void) {
   front1 = next_pixel(front1);
   pixel = front1;
   
-  for (i = 0; i < DUALCHASE_WIDTH; i++) {
+  for (i = 0; i < DUALCHASE_WIDTH1; i++) {
     strip.setPixelColor(pixel, 0xFF0000);
     pixel = prev_pixel(pixel);
     }
   
   // front2 leads a chase toward lower pixel numbers
   front2 = prev_pixel(front2);
+  front2 = prev_pixel(front2);
   pixel = front2;
-  for (i = 0; i < DUALCHASE_WIDTH; i++) {
+  for (i = 0; i < DUALCHASE_WIDTH2; i++) {
     strip.setPixelColor(pixel, 0x00FF00 | strip.getPixelColor(pixel));
     pixel = next_pixel(pixel);
     }
