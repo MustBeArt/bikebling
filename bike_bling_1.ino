@@ -61,6 +61,7 @@ void setup() {
 
   strip.begin(); // Initialize pins for output
   strip.show();  // Turn all LEDs off ASAP
+  strip.setBrightness(6);
 
   pinMode(BUTTON_PIN, INPUT);
   digitalWrite(BUTTON_PIN, HIGH); // pullup
